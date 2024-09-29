@@ -32,7 +32,8 @@ def add_styled_table_to_doc(doc, data, headers):
     for _, row in data.iterrows():
         row_cells = table.add_row().cells
         for i, header in enumerate(headers):
-            row_cells[i].text = str(row[header])
+            # Safely access columns and avoid KeyErrors
+            row_cells[i].text = str(row.get(header, 'N/A'))
             row_cells[i].paragraphs[0].alignment = 1  # Center alignment
     set_table_borders(table)  # Apply borders to the table
 
@@ -60,9 +61,15 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
     filtered_ranking_data = ranking_data[ranking_data['college_id'] == college_id]
     
     if not filtered_ranking_data.empty:
+        st.write(f"Ranking Data Columns: {filtered_ranking_data.columns.tolist()}")  # Debugging line to show columns
         doc.add_paragraph(f"{college_info['college_name']} has been ranked by various bodies for its academic and institutional performance. Below are the details of the rankings received:")
-        add_styled_table_to_doc(doc, filtered_ranking_data[['ranking_body', 'rank']], ['Ranking Body', 'Rank'])
-        doc.add_paragraph(f"The college’s achievements in terms of rankings showcase its dedication to providing quality education.")
+
+        # Check if the required columns exist and strip spaces if necessary
+        filtered_ranking_data.columns = filtered_ranking_data.columns.str.strip()  # Strip extra spaces
+        if 'ranking_body' in filtered_ranking_data.columns and 'rank' in filtered_ranking_data.columns:
+            add_styled_table_to_doc(doc, filtered_ranking_data[['ranking_body', 'rank']], ['Ranking Body', 'Rank'])
+        else:
+            doc.add_paragraph("Ranking data is not available due to missing columns.")
     else:
         doc.add_paragraph("Ranking data is not available.")
 

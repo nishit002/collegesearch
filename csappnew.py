@@ -38,19 +38,17 @@ if uploaded_file is not None:
         st.error("No valid 'College ID' or 'College Name' column found.")
         st.stop()
 
-    # Display the college IDs for selection
-    college_ids = df_colleges[college_id_column].unique().tolist()
-    
-    selected_colleges = st.multiselect("Select Colleges", college_ids)
+    # Display the college names for selection but use the corresponding college_id for fetching data
+    college_name_to_id = dict(zip(df_colleges[college_name_column], df_colleges[college_id_column]))
+    selected_college_names = st.multiselect("Select Colleges", list(college_name_to_id.keys()))
     
     # Button to generate the content
     if st.button("Generate Content"):
-        if selected_colleges:
-            # Iterate through selected college IDs and generate articles
-            for college_id in selected_colleges:
-                # Filter the data for the selected college ID
+        if selected_college_names:
+            # Iterate through selected college names and generate articles
+            for college_name in selected_college_names:
+                college_id = college_name_to_id[college_name]
                 row = df_colleges[df_colleges[college_id_column] == college_id].iloc[0]
-                college_name = row[college_name_column]
                 
                 # Create a Word document for the selected college
                 doc = Document()
@@ -88,8 +86,16 @@ if uploaded_file is not None:
                         award_row = df_awards[df_awards[college_id_column] == college_id]
                         if not award_row.empty:
                             award_info = award_row.iloc[0]
+                            # Check if columns exist in the 'Awards' sheet
+                            award = award_info.get('Award', None)
+                            awarding_authority = award_info.get('Awarding Authority', None)
+                            award_year = award_info.get('Award Year', None)
+
                             doc.add_heading(f"{college_name} Awards", level=1)
-                            doc.add_paragraph(f"{award_info['Award']} awarded by {award_info['Awarding Authority']} in {award_info['Award Year']}.")
+                            if award and awarding_authority and award_year:
+                                doc.add_paragraph(f"{award} awarded by {awarding_authority} in {award_year}.")
+                            else:
+                                doc.add_paragraph("Award details are incomplete.")
                     else:
                         st.warning(f"'{college_id_column}' not found in Awards sheet")
 
@@ -100,7 +106,10 @@ if uploaded_file is not None:
                         if not faculty_rows.empty:
                             doc.add_heading(f"{college_name} Faculty", level=1)
                             for _, faculty in faculty_rows.iterrows():
-                                doc.add_paragraph(f"{faculty['Faculty Name']}: {faculty['Specialty']} ({faculty['Education']})")
+                                faculty_name = faculty.get('Faculty Name', 'Unknown')
+                                specialty = faculty.get('Specialty', 'Unknown')
+                                education = faculty.get('Education', 'Unknown')
+                                doc.add_paragraph(f"{faculty_name}: {specialty} ({education})")
                     else:
                         st.warning(f"'{college_id_column}' not found in Faculty sheet")
                     

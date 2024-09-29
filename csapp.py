@@ -3,6 +3,7 @@ import pandas as pd
 from io import BytesIO
 from docx import Document
 from docx.shared import Pt
+import matplotlib.pyplot as plt
 
 # Function to create a table in Word document
 def add_table_to_doc(doc, data, headers):
@@ -45,13 +46,13 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
     # Rankings Table
     doc.add_heading('Rankings', level=2).style = style
     if not ranking_data.empty:
-        add_table_to_doc(doc, ranking_data, ['ranking_body', 'rank'])
+        add_table_to_doc(doc, ranking_data[['ranking_body', 'rank']], ['ranking_body', 'rank'])
 
     # Placements 
     doc.add_heading(f"{college_info['college_name']} Placements", level=2).style = style
     if not placement_data.empty:
         for index, row in placement_data.iterrows():
-            doc.add_paragraph(f"The college placement records for {row['course_name']} are as follows, the Highest Package is INR {row['highest_package']} and the Average Package is INR {row['average_package']}.", style=style)
+            doc.add_paragraph(f"The placement records for {row['course_name']} are as follows: Highest Package is INR {row['highest_package']} and Average Package is INR {row['average_package']}.", style=style)
 
     # Top Recruiters
     doc.add_paragraph(f"The Top Recruiters of {college_info['college_name']} are {', '.join(recruiters_data['recruiter_name'].astype(str).tolist())}.", style=style)
@@ -60,12 +61,12 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
     doc.add_heading(f"{college_info['college_name']} Awards", level=2).style = style
     if not awards_data.empty:
         for index, row in awards_data.iterrows():
-            doc.add_paragraph(f"The college has been awarded with {row['award_name']} by {row['awarding_body']} in {row['year']}.", style=style)
+            doc.add_paragraph(f"Award: {row['award_name']} by {row['awarding_body']} in {row['year']}.", style=style)
 
     # Faculty Table
     doc.add_heading(f"{college_info['college_name']} Faculty", level=2).style = style
     if not faculty_data.empty:
-        add_table_to_doc(doc, faculty_data, ['faculty_name', 'position', 'specialty', 'education'])
+        add_table_to_doc(doc, faculty_data[['faculty_name', 'position', 'specialty', 'education']], ['faculty_name', 'position', 'specialty', 'education'])
 
     # Contact Information
     doc.add_heading(f"{college_info['college_name']} Address", level=2).style = style
@@ -88,6 +89,17 @@ def download_word_file(doc):
     doc.save(buffer)
     buffer.seek(0)
     return buffer
+
+# Function to generate a bar chart
+def plot_placement_chart(placement_data):
+    fig, ax = plt.subplots()
+    ax.barh(placement_data['course_name'], placement_data['highest_package'], label='Highest Package', color='blue')
+    ax.barh(placement_data['course_name'], placement_data['average_package'], label='Average Package', color='green')
+
+    ax.set_xlabel('Package (INR)')
+    ax.set_title('Placement Packages by Course')
+    ax.legend()
+    st.pyplot(fig)
 
 # Streamlit App
 st.title("College Information Portal")
@@ -126,14 +138,24 @@ if uploaded_file is not None:
     st.write(f"The college is known for its {college_info['usp']}. It is a {'Coed' if college_info['is_coed'] == 'Yes' else 'Non-Coed'} college.")
     st.write(f"The NIRF rank of the college is {college_info['nirf_rank']}.")
 
-    # Display rankings and other details
+    # Display rankings
     st.subheader('Rankings')
-    if not ranking_df.empty:
-        st.dataframe(ranking_df)
+    st.dataframe(ranking_df[['ranking_body', 'rank']])
 
+    # Display placements
     st.subheader('Placements')
     if not placement_df.empty:
-        st.dataframe(placement_df)
+        st.dataframe(placement_df[['course_name', 'highest_package', 'average_package']])
+        # Plot a bar chart for placement data
+        plot_placement_chart(placement_df)
+
+    # Display faculty
+    st.subheader('Faculty')
+    st.dataframe(faculty_df[['faculty_name', 'position', 'specialty', 'education']])
+
+    # Display courses
+    st.subheader('Courses')
+    st.dataframe(course_df[['course_name', 'duration', 'fee']])
 
     # Generate and download Word document
     doc = create_word_document(college_info, ranking_df, placement_df, awards_df, 

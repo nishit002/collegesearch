@@ -54,17 +54,26 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
 
     # Rankings Table
     doc.add_heading('Rankings', level=2)
-    if not ranking_data.empty:
+    
+    # Filter ranking data by college_id
+    college_id = college_info['college_id']
+    filtered_ranking_data = ranking_data[ranking_data['college_id'] == college_id]
+    
+    if not filtered_ranking_data.empty:
         doc.add_paragraph(f"{college_info['college_name']} has been ranked by various bodies for its academic and institutional performance. Below are the details of the rankings received:")
-        add_styled_table_to_doc(doc, ranking_data[['ranking_body', 'rank']], ['Ranking Body', 'Rank'])
+        add_styled_table_to_doc(doc, filtered_ranking_data[['ranking_body', 'rank']], ['Ranking Body', 'Rank'])
         doc.add_paragraph(f"The college’s achievements in terms of rankings showcase its dedication to providing quality education.")
+    else:
+        doc.add_paragraph("Ranking data is not available.")
 
     # Placements Section
     doc.add_heading('Placements', level=2)
-    if not placement_data.empty:
+    if not placement_data.empty and 'course_name' in placement_data.columns and 'highest_package' in placement_data.columns and 'average_package' in placement_data.columns:
         doc.add_paragraph(f"Placement records for various courses at {college_info['college_name']} are excellent. Below is a summary of the highest and average packages for each course:")
         add_styled_table_to_doc(doc, placement_data[['course_name', 'highest_package', 'average_package']], ['Course', 'Highest Package (INR)', 'Average Package (INR)'])
         doc.add_paragraph(f"The placement data indicates strong industry collaboration, with top recruiters participating in the placement process.")
+    else:
+        doc.add_paragraph("Placement data is not available.")
 
     # Recruiters Section
     doc.add_paragraph(f"The Top Recruiters for {college_info['college_name']} include {', '.join(recruiters_data['recruiter_name'].astype(str).tolist())}. These recruiters represent leading companies in various sectors, ensuring bright career prospects for students.")
@@ -154,7 +163,11 @@ if uploaded_file is not None:
 
     # Display rankings
     st.subheader('Rankings')
-    st.dataframe(ranking_df[['ranking_body', 'rank']])
+    filtered_ranking_data = ranking_df[ranking_df['college_id'] == college_info['college_id']]
+    if not filtered_ranking_data.empty:
+        st.dataframe(filtered_ranking_data[['ranking_body', 'rank']])
+    else:
+        st.write("No ranking data available.")
 
     # Display placements
     st.subheader('Placements')

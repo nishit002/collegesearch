@@ -34,39 +34,35 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
     nirf_rank = college_info['nirf_rank'] if pd.notna(college_info['nirf_rank']) else 'N/A'
     doc.add_paragraph(f"The NIRF rank of the college is {nirf_rank}.", style=style)
 
-    # Approvals and Affiliations
-    approved_by = ", ".join(approval_data['approval_body'].astype(str).tolist())
-    affiliated_to = ", ".join(affiliation_data['affiliated_university'].astype(str).tolist())
-    doc.add_paragraph(f"It has been approved by {approved_by}.", style=style)
-    doc.add_paragraph(f"This college has a wide range of courses like {', '.join(course_data['course_name'].astype(str).tolist())}. It is affiliated with {affiliated_to}.", style=style)
-
-    # NAAC Ranking
-    doc.add_paragraph(f"NAAC has ranked the college at {college_info.get('naac_rank', 'N/A')}.", style=style)
-
     # Rankings Table
     doc.add_heading('Rankings', level=2).style = style
     if not ranking_data.empty:
         add_table_to_doc(doc, ranking_data[['ranking_body', 'rank']], ['ranking_body', 'rank'])
+        doc.add_paragraph(f"{college_info['college_name']} has been ranked by various bodies for its academic and institutional performance.", style=style)
 
     # Placements 
     doc.add_heading(f"{college_info['college_name']} Placements", level=2).style = style
     if not placement_data.empty:
         for index, row in placement_data.iterrows():
-            doc.add_paragraph(f"The placement records for {row['course_name']} are as follows: Highest Package is INR {row['highest_package']} and Average Package is INR {row['average_package']}.", style=style)
+            doc.add_paragraph(f"The placement records for {row['course_name']} are: Highest Package is INR {row['highest_package']} and Average Package is INR {row['average_package']}.", style=style)
+        doc.add_paragraph(f"The placement data indicates strong industry collaboration, with top recruiters participating in the placement process.", style=style)
 
-    # Top Recruiters
+    # Recruiters Table
     doc.add_paragraph(f"The Top Recruiters of {college_info['college_name']} are {', '.join(recruiters_data['recruiter_name'].astype(str).tolist())}.", style=style)
+    doc.add_paragraph(f"These recruiters represent leading companies in various industries such as {', '.join(recruiters_data['industry'].unique())}.", style=style)
 
     # Awards
     doc.add_heading(f"{college_info['college_name']} Awards", level=2).style = style
     if not awards_data.empty:
         for index, row in awards_data.iterrows():
             doc.add_paragraph(f"Award: {row['award_name']} by {row['awarding_body']} in {row['year']}.", style=style)
+        doc.add_paragraph(f"{college_info['college_name']} has received notable awards recognizing its contributions in various fields.", style=style)
 
     # Faculty Table
     doc.add_heading(f"{college_info['college_name']} Faculty", level=2).style = style
     if not faculty_data.empty:
-        add_table_to_doc(doc, faculty_data[['faculty_name', 'position', 'specialty', 'education']], ['faculty_name', 'position', 'specialty', 'education'])
+        add_table_to_doc(doc, faculty_data[['faculty_name', 'position', 'specialty', 'education']], ['Faculty Name', 'Position', 'Specialty', 'Education'])
+        doc.add_paragraph(f"The faculty at {college_info['college_name']} are well-qualified and come from diverse backgrounds, providing a rich learning experience.", style=style)
 
     # Contact Information
     doc.add_heading(f"{college_info['college_name']} Address", level=2).style = style
@@ -74,12 +70,15 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
     doc.add_paragraph(f"Address: {contact_info['address']}", style=style)
     doc.add_paragraph(f"Phone: {contact_info['phone_number']}", style=style)
     doc.add_paragraph(f"Email: {contact_info['email']}", style=style)
-    doc.add_paragraph(f"Website: {contact_info['website']}", style=style)
+    doc.add_paragraph(f"The infrastructure includes state-of-the-art facilities such as {', '.join(facilities_data['facility_name'].astype(str).tolist())}.", style=style)
+    doc.add_paragraph(f"The official website of the college is {contact_info['website']}.", style=style)
 
     # Courses and Fees
     doc.add_heading("Courses and Fees", level=2).style = style
     for index, row in course_data.iterrows():
         doc.add_paragraph(f"Course: {row['course_name']}, Duration: {row['duration']}, Fees: {row['fee']}.", style=style)
+        doc.add_paragraph(f"Specializations for this course include: {row['specialization']}.", style=style)
+        doc.add_paragraph(f"The course offers strong placement opportunities, with companies from relevant industries recruiting students.", style=style)
 
     return doc
 

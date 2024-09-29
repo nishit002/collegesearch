@@ -104,9 +104,13 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
 
         admission_info = admission_data[admission_data['course_name'] == row['course_name']]
         if not admission_info.empty:
-            doc.add_paragraph(f"Admission for this course starts on {admission_info['start_date'].iloc[0].strftime('%Y-%m-%d')} and ends on {admission_info['end_date'].iloc[0].strftime('%Y-%m-%d')}.", style=style)
-        doc.add_paragraph(f"The eligibility criteria for the course is {row['admission_criteria']}.", style=style)
-        doc.add_paragraph(f"The totalnumber of seats for this course is {row['seats']}.", style=style)
+            try:  # Add a try-except block to handle potential errors
+                doc.add_paragraph(f"Admission for this course starts on {admission_info['start_date'].iloc[0].strftime('%Y-%m-%d')} and ends on {admission_info['end_date'].iloc[0].strftime('%Y-%m-%d')}.", style=style)
+            except Exception as e:
+                print(f"Error processing admission dates: {e}")
+                doc.add_paragraph("Admission dates not available.", style=style)
+        else:
+            doc.add_paragraph("Admission dates not available.", style=style)
 
     # Admission Process
     doc.add_heading("Admission Process", level=2).style = style

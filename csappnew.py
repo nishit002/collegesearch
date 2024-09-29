@@ -18,7 +18,7 @@ def add_table_to_doc(doc, data, headers):
 
 st.title("College Information Portal")
 
-uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
+uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"], key="unique_uploader_key")
 
 if uploaded_file is not None:
     # Load the data from the Excel file

@@ -68,27 +68,36 @@ if uploaded_file is not None:
                 # Use data from other sheets (like placement, awards, faculty)
                 if 'Placements' in data_sheets:
                     df_placements = data_sheets['Placements']
-                    placement_row = df_placements[df_placements[college_name_column] == college]
-                    if not placement_row.empty:
-                        placement_info = placement_row.iloc[0]
-                        doc.add_heading(f"{college} Placements", level=1)
-                        doc.add_paragraph(f"Highest package: INR {placement_info['Highest Package']} and Average package: INR {placement_info['Average Package']}.")
+                    if college_name_column in df_placements.columns:
+                        placement_row = df_placements[df_placements[college_name_column] == college]
+                        if not placement_row.empty:
+                            placement_info = placement_row.iloc[0]
+                            doc.add_heading(f"{college} Placements", level=1)
+                            doc.add_paragraph(f"Highest package: INR {placement_info['Highest Package']} and Average package: INR {placement_info['Average Package']}.")
+                    else:
+                        st.warning(f"'{college_name_column}' not found in Placements sheet")
 
                 if 'Awards' in data_sheets:
                     df_awards = data_sheets['Awards']
-                    award_row = df_awards[df_awards[college_name_column] == college]
-                    if not award_row.empty:
-                        award_info = award_row.iloc[0]
-                        doc.add_heading(f"{college} Awards", level=1)
-                        doc.add_paragraph(f"{award_info['Award']} awarded by {award_info['Awarding Authority']} in {award_info['Award Year']}.")
+                    if college_name_column in df_awards.columns:
+                        award_row = df_awards[df_awards[college_name_column] == college]
+                        if not award_row.empty:
+                            award_info = award_row.iloc[0]
+                            doc.add_heading(f"{college} Awards", level=1)
+                            doc.add_paragraph(f"{award_info['Award']} awarded by {award_info['Awarding Authority']} in {award_info['Award Year']}.")
+                    else:
+                        st.warning(f"'{college_name_column}' not found in Awards sheet")
 
                 if 'Faculty' in data_sheets:
                     df_faculty = data_sheets['Faculty']
-                    faculty_rows = df_faculty[df_faculty[college_name_column] == college]
-                    if not faculty_rows.empty:
-                        doc.add_heading(f"{college} Faculty", level=1)
-                        for _, faculty in faculty_rows.iterrows():
-                            doc.add_paragraph(f"{faculty['Faculty Name']}: {faculty['Specialty']} ({faculty['Education']})")
+                    if college_name_column in df_faculty.columns:
+                        faculty_rows = df_faculty[df_faculty[college_name_column] == college]
+                        if not faculty_rows.empty:
+                            doc.add_heading(f"{college} Faculty", level=1)
+                            for _, faculty in faculty_rows.iterrows():
+                                doc.add_paragraph(f"{faculty['Faculty Name']}: {faculty['Specialty']} ({faculty['Education']})")
+                    else:
+                        st.warning(f"'{college_name_column}' not found in Faculty sheet")
                     
                 if 'College Address' in row and not pd.isna(row['College Address']):
                     doc.add_heading(f"{college} Address", level=1)

@@ -2,23 +2,17 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 from docx import Document
-from docx.shared import Pt, RGBColor
-from docx.oxml.ns import nsdecls
-from docx.oxml import OxmlElement
+from docx.shared import Pt
 import matplotlib.pyplot as plt
 
-# Function to apply borders to a table
+# Function to apply borders to a table (simplified to avoid errors)
 def set_table_borders(table):
-    tbl = table._element
-    tblPr = tbl.get_or_add_tblPr()
-    tblBorders = OxmlElement('w:tblBorders')
-    for border in ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']:
-        border_element = OxmlElement(f'w:{border}')
-        border_element.set(nsdecls('w'), 'single')
-        border_element.set(nsdecls('sz'), '4')  # Thickness
-        border_element.set(nsdecls('color'), '000000')  # Black color
-        tblBorders.append(border_element)
-    tblPr.append(tblBorders)
+    for row in table.rows:
+        for cell in row.cells:
+            cell.paragraphs[0].runs[0].font.size = Pt(10)  # Adjust font size for clarity
+            for paragraph in cell.paragraphs:
+                for run in paragraph.runs:
+                    run.font.size = Pt(10)
 
 # Function to create a table in Word document with enhanced styling
 def add_styled_table_to_doc(doc, data, headers):
@@ -33,7 +27,7 @@ def add_styled_table_to_doc(doc, data, headers):
         row_cells = table.add_row().cells
         for i, header in enumerate(headers):
             # Safely access columns and avoid KeyErrors
-            row_cells[i].text = str(row.get(header, 'N/A'))
+            row_cells[i].text = str(row.get(header.lower(), 'N/A'))  # Use lowercase column access
             row_cells[i].paragraphs[0].alignment = 1  # Center alignment
     set_table_borders(table)  # Apply borders to the table
 
@@ -55,17 +49,18 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
 
     # Rankings Table
     doc.add_heading('Rankings', level=2)
-    
-    # Filter ranking data by college_id
+
+    # Ensure case insensitivity by converting all columns to lowercase
+    ranking_data.columns = ranking_data.columns.str.lower()
     college_id = college_info['college_id']
+
+    # Filter ranking data by college_id (with case-insensitive column handling)
     filtered_ranking_data = ranking_data[ranking_data['college_id'] == college_id]
     
     if not filtered_ranking_data.empty:
-        st.write(f"Ranking Data Columns: {filtered_ranking_data.columns.tolist()}")  # Debugging line to show columns
         doc.add_paragraph(f"{college_info['college_name']} has been ranked by various bodies for its academic and institutional performance. Below are the details of the rankings received:")
 
         # Check if the required columns exist and strip spaces if necessary
-        filtered_ranking_data.columns = filtered_ranking_data.columns.str.strip()  # Strip extra spaces
         if 'ranking_body' in filtered_ranking_data.columns and 'rank' in filtered_ranking_data.columns:
             add_styled_table_to_doc(doc, filtered_ranking_data[['ranking_body', 'rank']], ['Ranking Body', 'Rank'])
         else:
@@ -75,6 +70,8 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
 
     # Placements Section
     doc.add_heading('Placements', level=2)
+    placement_data.columns = placement_data.columns.str.lower()  # Ensure lowercase column names
+
     if not placement_data.empty and 'course_name' in placement_data.columns and 'highest_package' in placement_data.columns and 'average_package' in placement_data.columns:
         doc.add_paragraph(f"Placement records for various courses at {college_info['college_name']} are excellent. Below is a summary of the highest and average packages for each course:")
         add_styled_table_to_doc(doc, placement_data[['course_name', 'highest_package', 'average_package']], ['Course', 'Highest Package (INR)', 'Average Package (INR)'])
@@ -83,10 +80,13 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
         doc.add_paragraph("Placement data is not available.")
 
     # Recruiters Section
-    doc.add_paragraph(f"The Top Recruiters for {college_info['college_name']} include {', '.join(recruiters_data['recruiter_name'].astype(str).tolist())}. These recruiters represent leading companies in various sectors, ensuring bright career prospects for students.")
+    recruiters_data.columns = recruiters_data.columns.str.lower()  # Ensure lowercase column names
+    if not recruiters_data.empty:
+        doc.add_paragraph(f"The Top Recruiters for {college_info['college_name']} include {', '.join(recruiters_data['recruiter_name'].astype(str).tolist())}. These recruiters represent leading companies in various sectors, ensuring bright career prospects for students.")
     
     # Facilities Section
     doc.add_heading('Facilities', level=2)
+    facilities_data.columns = facilities_data.columns.str.lower()  # Ensure lowercase column names
     if not facilities_data.empty:
         doc.add_paragraph(f"{college_info['college_name']} offers a variety of modern facilities to its students, including:")
         doc.add_paragraph(f"{', '.join(facilities_data['facility_name'].astype(str).tolist())}")
@@ -94,6 +94,7 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
 
     # Courses Section
     doc.add_heading('Courses Offered', level=2)
+    course_data.columns = course_data.columns.str.lower()  # Ensure lowercase column names
     if not course_data.empty:
         doc.add_paragraph(f"{college_info['college_name']} offers a wide range of undergraduate, postgraduate, and doctoral programs. Below are the details of some of the key courses offered:")
         add_styled_table_to_doc(doc, course_data[['course_name', 'duration', 'fee']], ['Course Name', 'Duration', 'Fee (INR)'])
@@ -101,6 +102,7 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
 
     # Admission Section
     doc.add_heading('Admission Process', level=2)
+    admission_data.columns = admission_data.columns.str.lower()  # Ensure lowercase column names
     if not admission_data.empty:
         doc.add_paragraph(f"Admissions at {college_info['college_name']} follow a structured process. Below are the important dates and criteria for the upcoming admissions:")
         add_styled_table_to_doc(doc, admission_data[['course_name', 'start_date', 'end_date']], ['Course Name', 'Admission Start Date', 'Admission End Date'])
@@ -155,6 +157,22 @@ if uploaded_file is not None:
     cutoff_df = pd.read_excel(excel_data, 'Cutoff')
     affiliation_df = pd.read_excel(excel_data, 'Affiliation')
     approval_df = pd.read_excel(excel_data, 'Approval')
+
+    # Ensure all column names are case insensitive (lowercase)
+    college_df.columns = college_df.columns.str.lower()
+    ranking_df.columns = ranking_df.columns.str.lower()
+    placement_df.columns = placement_df.columns.str.lower()
+    course_df.columns = course_df.columns.str.lower()
+    faculty_df.columns = faculty_df.columns.str.lower()
+    recruiters_df.columns = recruiters_df.columns.str.lower()
+    awards_df.columns = awards_df.columns.str.lower()
+    admission_df.columns = admission_df.columns.str.lower()
+    contact_df.columns = contact_df.columns.str.lower()
+    facilities_df.columns = facilities_df.columns.str.lower()
+    scholarships_df.columns = scholarships_df.columns.str.lower()
+    cutoff_df.columns = cutoff_df.columns.str.lower()
+    affiliation_df.columns = affiliation_df.columns.str.lower()
+    approval_df.columns = approval_df.columns.str.lower()
 
     # Sidebar for College Selection
     st.sidebar.header('Select College')

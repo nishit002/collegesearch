@@ -30,7 +30,7 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
     # General Info
     doc.add_paragraph(f"{college_info['college_name']} was established in the {college_info['establishment_year']} and is located in {college_info['city']}, {college_info['state']}.", style=style)
     doc.add_paragraph(f"The college is known for its {college_info['usp']}. It is a Coed College{'.' if college_info['is_coed'] == 'Yes' else ' and is not a Coed College.'}", style=style)
-    nirf_rank = college_info['nirf_rank'] if pd.notna(college_info['nirf_rank']) else 'N/A'  # Handle potential missing NIRF rank
+    nirf_rank = college_info['nirf_rank'] if pd.notna(college_info['nirf_rank']) else 'N/A'
     doc.add_paragraph(f"The NIRF rank of the college is {nirf_rank}.", style=style)
 
     # Approvals and Affiliations
@@ -40,7 +40,7 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
     doc.add_paragraph(f"This college has a wide range of courses like {', '.join(course_data['course_name'].astype(str).tolist())}. It is affiliated with {affiliated_to}.", style=style)
 
     # NAAC Ranking (add a NAAC column to your College data)
-    doc.add_paragraph(f"NAAC has ranked the college at {college_info.get('naac_rank', 'N/A')}.", style=style)  # Handle potential missing NAAC rank
+    doc.add_paragraph(f"NAAC has ranked the college at {college_info.get('naac_rank', 'N/A')}.", style=style)
 
     # Rankings Table
     doc.add_heading('Rankings', level=2).style = style
@@ -54,8 +54,8 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
             doc.add_paragraph(f"The college placement records for {row['course_name']} are as follows, the Highest Package is INR {row['highest_package']} and the Average Package is INR {row['average_package']}.", style=style)
 
     # Top Recruiters and Industries
-    doc.add_paragraph(f"The Top Recruiters of the {college_info['college_name']} are {', '.join(recruiters_data['recruiter_name'].astype(str).tolist())}.", style=style)  # Assuming you have a dedicated "Industries" column in your recruiters data
-    doc.add_paragraph(f"The Top Industries that the students got hired from are  {', '.join(recruiters_data['recruiter_name'].astype(str).tolist())}.", style=style)  # Placeholder - replace with actual industry data
+    doc.add_paragraph(f"The Top Recruiters of the {college_info['college_name']} are {', '.join(recruiters_data['recruiter_name'].astype(str).tolist())}.", style=style)
+    doc.add_paragraph(f"The Top Industries that the students got hired from are {', '.join(recruiters_data['recruiter_name'].astype(str).tolist())}.", style=style)  # Placeholder - replace with actual industry data
 
     # Awards
     doc.add_heading(f"{college_info['college_name']} Awards", level=2).style = style
@@ -78,16 +78,14 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
         add_table_to_doc(doc, faculty_data, ['faculty_name', 'position', 'specialty', 'education'])
 
     # Contact and Infrastructure
-    # ... (other parts of the function) ...
-
-    # Contact and Infrastructure
     doc.add_heading(f"{college_info['college_name']} Address", level=2).style = style
     
     # Access contact details from contact_data
     contact_info = contact_data[contact_data['college_id'] == college_info['college_id']].iloc[0]
     
     doc.add_paragraph(f"The college is located in {contact_info['address']}. You can contact the college by reaching out to the phone number: {contact_info['phone_number']} Email: {contact_info['email']}", style=style)
-
+    doc.add_paragraph(f"The college infrastructure includes facilities like {', '.join(facilities_data['facility_name'].astype(str).tolist())}.", style=style)
+    doc.add_paragraph(f"The official website of the college is {contact_info['website']}.", style=style)
 
     # Courses and Fees
     doc.add_heading("Courses and Fees", level=2).style = style
@@ -96,21 +94,19 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
 
     for index, row in course_data.iterrows():
         doc.add_paragraph(f"It provides {row['course_name']}, which is a {row['level']} course and is of {row['duration']}, the fee for the course is {row['fee']}.", style=style)
-        # Add placement details if available in placement_data
+
         placement_info = placement_data[placement_data['course_name'] == row['course_name']]
         if not placement_info.empty:
             doc.add_paragraph(f"The Placement for this course in the <year> was {placement_info['highest_package'].iloc[0]}, and {placement_info['average_package'].iloc[0]}.", style=style)  # Replace <year> with actual year
-        # Add specialization details (assuming you have a "specializations" column in your course data)
+
         doc.add_paragraph(f"The specializations for this course include: {row['specialization']}.", style=style)  # Placeholder - replace with actual specialization data
-        # Add information about course type, mode, and examination frequency (add these columns to your course data)
         doc.add_paragraph("The Course is a Full-time course. It is provided on campus. It is a degree course and takes examinations on a <semester/trimester/Yearly> basis.", style=style)  # Placeholder - replace with actual data
 
-        # Add admission details if available in admission_data
         admission_info = admission_data[admission_data['course_name'] == row['course_name']]
         if not admission_info.empty:
             doc.add_paragraph(f"Admission for this course starts on {admission_info['start_date'].iloc[0].strftime('%Y-%m-%d')} and ends on {admission_info['end_date'].iloc[0].strftime('%Y-%m-%d')}.", style=style)
-        doc.add_paragraph(f"The eligibility criteria for the course is {row['admission_criteria']}.", style=style)  # Assuming you have an "admission_criteria" column in your course data
-        doc.add_paragraph(f"The total number of seats for this course is {row['seats']}.", style=style)
+        doc.add_paragraph(f"The eligibility criteria for the course is {row['admission_criteria']}.", style=style)
+        doc.add_paragraph(f"The totalnumber of seats for this course is {row['seats']}.", style=style)
 
     # Admission Process
     doc.add_heading("Admission Process", level=2).style = style
@@ -128,13 +124,12 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
     # ... add other documents from your template ...
 
     # Admission Helpline 
-    doc.add_paragraph(f"In case you have any queries you can contact the Admission Helpline Number: {contact_data['phone_number'].iloc[0]}.", style=style)
+    doc.add_paragraph(f"In case you have any queries you can contact the Admission Helpline Number: {contact_info['phone_number']}.", style=style)
 
     # Cutoff Information (if available)
     doc.add_heading("College Cutoff", level=2).style = style
     if not cutoff_data.empty:
         doc.add_paragraph("The cutoff is the minimum eligibility required by the institute in order to enter students into various programs.", style=style)
-        # You can add a table here to display cutoff_data if needed
         add_table_to_doc(doc, cutoff_data, ['course_name', 'cutoff_score'])
     else:
         doc.add_paragraph("Cutoff information is not available.", style=style)
@@ -147,7 +142,8 @@ def download_word_file(doc):
     doc.save(buffer)
     buffer.seek(0)
     return buffer
-    # Add a file uploader so the user can upload the Excel file
+
+# Add a file uploader so the user can upload the Excel file
 st.title("College Information Portal")
 
 uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
@@ -185,6 +181,7 @@ if uploaded_file is not None:
     st.write(f"The NIRF rank of the college is {college_info['nirf_rank']}.")
 
     # ... (You can add more code here to display data on the Streamlit app if needed) ...
+
     # Generate and download Word document
     doc = create_word_document(college_info, ranking_df, placement_df, awards_df, 
                                faculty_df, recruiters_df, course_df, admission_df, 

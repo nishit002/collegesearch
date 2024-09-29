@@ -100,9 +100,29 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
         doc.add_paragraph(f"The specializations for this course include: {row['specialization']}.", style=style)
         doc.add_paragraph("The Course is a Full-time course. It is provided on campus. It is a degree course and takes examinations on a <semester/trimester/Yearly> basis.", style=style)
 
+        # Handle Admission Info
         admission_info = admission_data[admission_data['course_name'] == row['course_name']]
         if not admission_info.empty:
-            doc.add_paragraph(f"Admission for this course starts on {admission_info['start_date'].iloc[0].strftime('%Y-%m-%d')} and ends on {admission_info['end_date'].iloc[0].strftime('%Y-%m-%d')}.", style=style)
+            # Ensure that 'start_date' and 'end_date' columns exist
+            if 'start_date' in admission_info.columns and 'end_date' in admission_info.columns:
+                start_date = admission_info['start_date'].iloc[0]
+                end_date = admission_info['end_date'].iloc[0]
+
+                # Check if start_date and end_date are not NaN and can be converted to datetime
+                if pd.notna(start_date) and pd.notna(end_date):
+                    start_date = pd.to_datetime(start_date, errors='coerce')
+                    end_date = pd.to_datetime(end_date, errors='coerce')
+
+                    # Ensure valid dates after conversion
+                    if pd.notna(start_date) and pd.notna(end_date):
+                        doc.add_paragraph(f"Admission for this course starts on {start_date.strftime('%Y-%m-%d')} and ends on {end_date.strftime('%Y-%m-%d')}.", style=style)
+                    else:
+                        doc.add_paragraph("Admission dates are currently unavailable.", style=style)
+                else:
+                    doc.add_paragraph("Admission dates are currently unavailable.", style=style)
+            else:
+                doc.add_paragraph("Admission dates are currently unavailable.", style=style)
+
         doc.add_paragraph(f"The eligibility criteria for the course is {row['admission_criteria']}.", style=style)
         doc.add_paragraph(f"The total number of seats for this course is {row['seats']}.", style=style)
 

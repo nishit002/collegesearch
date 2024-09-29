@@ -2,20 +2,39 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 from docx import Document
-from docx.shared import Pt
+from docx.shared import Pt, RGBColor
+from docx.oxml.ns import nsdecls
+from docx.oxml import OxmlElement
 import matplotlib.pyplot as plt
 
-# Function to create a table in Word document
-def add_table_to_doc(doc, data, headers):
+# Function to apply borders to a table
+def set_table_borders(table):
+    tbl = table._element
+    tblPr = tbl.get_or_add_tblPr()
+    tblBorders = OxmlElement('w:tblBorders')
+    for border in ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']:
+        border_element = OxmlElement(f'w:{border}')
+        border_element.set(nsdecls('w'), 'single')
+        border_element.set(nsdecls('sz'), '4')  # Thickness
+        border_element.set(nsdecls('color'), '000000')  # Black color
+        tblBorders.append(border_element)
+    tblPr.append(tblBorders)
+
+# Function to create a table in Word document with enhanced styling
+def add_styled_table_to_doc(doc, data, headers):
     table = doc.add_table(rows=1, cols=len(headers))
     hdr_cells = table.rows[0].cells
     for i, header in enumerate(headers):
         hdr_cells[i].text = header
+        hdr_cells[i].paragraphs[0].runs[0].font.bold = True  # Make header bold
+        hdr_cells[i].paragraphs[0].alignment = 1  # Center alignment
 
     for _, row in data.iterrows():
         row_cells = table.add_row().cells
         for i, header in enumerate(headers):
             row_cells[i].text = str(row[header])
+            row_cells[i].paragraphs[0].alignment = 1  # Center alignment
+    set_table_borders(table)  # Apply borders to the table
 
 # Function to create Word document with the selected college data
 def create_word_document(college_info, ranking_data, placement_data, awards_data, faculty_data, recruiters_data, course_data, admission_data, contact_data, facilities_data, scholarships_data, cutoff_data, affiliation_data, approval_data):
@@ -26,59 +45,55 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
     font.size = Pt(12)
 
     # Title
-    doc.add_heading(f"{college_info['college_name']} Information", level=1).style = style
+    doc.add_heading(f"{college_info['college_name']} Information", level=1)
 
-    # General Info
-    doc.add_paragraph(f"{college_info['college_name']} was established in the {college_info['establishment_year']} and is located in {college_info['city']}, {college_info['state']}.", style=style)
-    doc.add_paragraph(f"The college is known for its {college_info['usp']}. It is a Coed College{'.' if college_info['is_coed'] == 'Yes' else ' and is not a Coed College.'}", style=style)
-    nirf_rank = college_info['nirf_rank'] if pd.notna(college_info['nirf_rank']) else 'N/A'
-    doc.add_paragraph(f"The NIRF rank of the college is {nirf_rank}.", style=style)
+    # About the College Section
+    doc.add_heading('About the College', level=2)
+    doc.add_paragraph(f"{college_info['college_name']} was established in the year {college_info['establishment_year']} and is located in {college_info['city']}, {college_info['state']}. It is a well-renowned institution known for its {college_info['usp']}.")
+    doc.add_paragraph(f"The college is {'Coed' if college_info['is_coed'] == 'Yes' else 'Non-Coed'}. The NIRF rank of the college is {college_info['nirf_rank'] if pd.notna(college_info['nirf_rank']) else 'N/A'}.")
 
     # Rankings Table
-    doc.add_heading('Rankings', level=2).style = style
+    doc.add_heading('Rankings', level=2)
     if not ranking_data.empty:
-        add_table_to_doc(doc, ranking_data[['ranking_body', 'rank']], ['ranking_body', 'rank'])
-        doc.add_paragraph(f"{college_info['college_name']} has been ranked by various bodies for its academic and institutional performance.", style=style)
+        doc.add_paragraph(f"{college_info['college_name']} has been ranked by various bodies for its academic and institutional performance. Below are the details of the rankings received:")
+        add_styled_table_to_doc(doc, ranking_data[['ranking_body', 'rank']], ['Ranking Body', 'Rank'])
+        doc.add_paragraph(f"The college’s achievements in terms of rankings showcase its dedication to providing quality education.")
 
-    # Placements 
-    doc.add_heading(f"{college_info['college_name']} Placements", level=2).style = style
+    # Placements Section
+    doc.add_heading('Placements', level=2)
     if not placement_data.empty:
-        for index, row in placement_data.iterrows():
-            doc.add_paragraph(f"The placement records for {row['course_name']} are: Highest Package is INR {row['highest_package']} and Average Package is INR {row['average_package']}.", style=style)
-        doc.add_paragraph(f"The placement data indicates strong industry collaboration, with top recruiters participating in the placement process.", style=style)
+        doc.add_paragraph(f"Placement records for various courses at {college_info['college_name']} are excellent. Below is a summary of the highest and average packages for each course:")
+        add_styled_table_to_doc(doc, placement_data[['course_name', 'highest_package', 'average_package']], ['Course', 'Highest Package (INR)', 'Average Package (INR)'])
+        doc.add_paragraph(f"The placement data indicates strong industry collaboration, with top recruiters participating in the placement process.")
 
-    # Recruiters Table
-    doc.add_paragraph(f"The Top Recruiters of {college_info['college_name']} are {', '.join(recruiters_data['recruiter_name'].astype(str).tolist())}.", style=style)
-    doc.add_paragraph(f"These recruiters represent leading companies in various industries such as {', '.join(recruiters_data['industry'].unique())}.", style=style)
+    # Recruiters Section
+    doc.add_paragraph(f"The Top Recruiters for {college_info['college_name']} include {', '.join(recruiters_data['recruiter_name'].astype(str).tolist())}. These recruiters represent leading companies in various sectors, ensuring bright career prospects for students.")
+    
+    # Facilities Section
+    doc.add_heading('Facilities', level=2)
+    if not facilities_data.empty:
+        doc.add_paragraph(f"{college_info['college_name']} offers a variety of modern facilities to its students, including:")
+        doc.add_paragraph(f"{', '.join(facilities_data['facility_name'].astype(str).tolist())}")
+        doc.add_paragraph(f"These facilities provide a conducive learning environment and support the holistic development of students.")
 
-    # Awards
-    doc.add_heading(f"{college_info['college_name']} Awards", level=2).style = style
-    if not awards_data.empty:
-        for index, row in awards_data.iterrows():
-            doc.add_paragraph(f"Award: {row['award_name']} by {row['awarding_body']} in {row['year']}.", style=style)
-        doc.add_paragraph(f"{college_info['college_name']} has received notable awards recognizing its contributions in various fields.", style=style)
+    # Courses Section
+    doc.add_heading('Courses Offered', level=2)
+    if not course_data.empty:
+        doc.add_paragraph(f"{college_info['college_name']} offers a wide range of undergraduate, postgraduate, and doctoral programs. Below are the details of some of the key courses offered:")
+        add_styled_table_to_doc(doc, course_data[['course_name', 'duration', 'fee']], ['Course Name', 'Duration', 'Fee (INR)'])
+        doc.add_paragraph(f"The courses offered cover a broad spectrum of specializations, ensuring that students can find programs suited to their career goals.")
 
-    # Faculty Table
-    doc.add_heading(f"{college_info['college_name']} Faculty", level=2).style = style
-    if not faculty_data.empty:
-        add_table_to_doc(doc, faculty_data[['faculty_name', 'position', 'specialty', 'education']], ['Faculty Name', 'Position', 'Specialty', 'Education'])
-        doc.add_paragraph(f"The faculty at {college_info['college_name']} are well-qualified and come from diverse backgrounds, providing a rich learning experience.", style=style)
-
-    # Contact Information
-    doc.add_heading(f"{college_info['college_name']} Address", level=2).style = style
-    contact_info = contact_data[contact_data['college_id'] == college_info['college_id']].iloc[0]
-    doc.add_paragraph(f"Address: {contact_info['address']}", style=style)
-    doc.add_paragraph(f"Phone: {contact_info['phone_number']}", style=style)
-    doc.add_paragraph(f"Email: {contact_info['email']}", style=style)
-    doc.add_paragraph(f"The infrastructure includes state-of-the-art facilities such as {', '.join(facilities_data['facility_name'].astype(str).tolist())}.", style=style)
-    doc.add_paragraph(f"The official website of the college is {contact_info['website']}.", style=style)
-
-    # Courses and Fees
-    doc.add_heading("Courses and Fees", level=2).style = style
-    for index, row in course_data.iterrows():
-        doc.add_paragraph(f"Course: {row['course_name']}, Duration: {row['duration']}, Fees: {row['fee']}.", style=style)
-        doc.add_paragraph(f"Specializations for this course include: {row['specialization']}.", style=style)
-        doc.add_paragraph(f"The course offers strong placement opportunities, with companies from relevant industries recruiting students.", style=style)
+    # Admission Section
+    doc.add_heading('Admission Process', level=2)
+    if not admission_data.empty:
+        doc.add_paragraph(f"Admissions at {college_info['college_name']} follow a structured process. Below are the important dates and criteria for the upcoming admissions:")
+        add_styled_table_to_doc(doc, admission_data[['course_name', 'start_date', 'end_date']], ['Course Name', 'Admission Start Date', 'Admission End Date'])
+        doc.add_paragraph(f"To apply, students must follow these steps:")
+        doc.add_paragraph("1. Visit the official website and register.")
+        doc.add_paragraph("2. Log in to the admission portal.")
+        doc.add_paragraph("3. Submit the required documents.")
+        doc.add_paragraph("4. Pay the application fee.")
+        doc.add_paragraph("5. Keep a printout of the fee payment for future reference.")
 
     return doc
 

@@ -1,137 +1,134 @@
 import streamlit as st
 import pandas as pd
+from io import BytesIO
 from docx import Document
-import os
+from docx.shared import Pt
 
-# Title of the app
-st.title("Comprehensive College Content Generation App")
+# Helper function for adding sections
+def add_section(doc, heading, content):
+    doc.add_heading(heading, level=2).style = doc.styles['Normal']
+    doc.add_paragraph(content, style=doc.styles['Normal'])
 
-# File upload
-uploaded_file = st.file_uploader("Upload an Excel file", type=["xlsx"])
+# Function to create Word document
+def create_word_document(college_info, ranking_data, placement_data, awards_data, faculty_data, recruiters_data, course_data, admission_data, contact_data, facilities_data, scholarships_data, cutoff_data, affiliation_data, approval_data):
+    doc = Document()
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Times New Roman'
+    font.size = Pt(12)
 
-# Initialize empty data variable
-data_sheets = {}
+    # Title and General Info
+    add_section(doc, f"{college_info['college_name']} Information",
+                f"{college_info['college_name']} was established in {college_info['establishment_year']} and is located in {college_info['city']}, {college_info['state']}."
+                f" The college is known for {college_info['usp']} and is {'Coed' if college_info['is_coed'] == 'Yes' else 'Non-Coed'}. NIRF rank: {college_info['nirf_rank'] or 'N/A'}")
+
+    # Approvals and Affiliations
+    doc.add_paragraph(f"Approved by: {', '.join(approval_data['approval_body'].astype(str).tolist())}", style=style)
+    doc.add_paragraph(f"Affiliated with: {', '.join(affiliation_data['affiliated_university'].astype(str).tolist())}", style=style)
+
+    # Add sections for Rankings, Placements, Recruiters, Awards, Scholarships, and Faculty
+    if not ranking_data.empty:
+        add_table_to_doc(doc, ranking_data, ['ranking_body', 'rank'])
+
+    if not placement_data.empty:
+        add_section(doc, f"{college_info['college_name']} Placements", 
+                    "\n".join([f"{row['course_name']}: Highest INR {row['highest_package']}, Average INR {row['average_package']}" for _, row in placement_data.iterrows()]))
+
+    doc.add_paragraph(f"Top Recruiters: {', '.join(recruiters_data['recruiter_name'].astype(str).tolist())}", style=style)
+
+    if not awards_data.empty:
+        add_section(doc, f"{college_info['college_name']} Awards", 
+                    "\n".join([f"{row['award_name']} by {row['awarding_body']} ({row['year']})" for _, row in awards_data.iterrows()]))
+
+    if not scholarships_data.empty:
+        add_section(doc, "Scholarships", "\n".join([f"{row['scholarship_name']}: {row['description']}" for _, row in scholarships_data.iterrows()]))
+
+    if not faculty_data.empty:
+        add_table_to_doc(doc, faculty_data, ['faculty_name', 'position', 'specialty', 'education'])
+
+    # Contact Info and Facilities
+    contact_info = contact_data[contact_data['college_id'] == college_info['college_id']].iloc[0]
+    doc.add_paragraph(f"Address: {contact_info['address']}. Contact: {contact_info['phone_number']}, {contact_info['email']}. Website: {contact_info['website']}", style=style)
+    doc.add_paragraph(f"Facilities: {', '.join(facilities_data['facility_name'].astype(str).tolist())}", style=style)
+
+    # Courses and Fees
+    total_courses = len(course_data)
+    doc.add_paragraph(f"{college_info['college_name']} offers {total_courses} courses across various levels.", style=style)
+
+    for index, row in course_data.iterrows():
+        doc.add_paragraph(f"Course: {row['course_name']}, Fee: {row['fee']}", style=style)
+        admission_info = admission_data[admission_data['course_name'] == row['course_name']]
+        if not admission_info.empty:
+            doc.add_paragraph(f"Admissions: Start on {admission_info['start_date'].iloc[0].strftime('%Y-%m-%d')} and end on {admission_info['end_date'].iloc[0].strftime('%Y-%m-%d')}", style=style)
+
+    # Admission Process
+    add_section(doc, "Admission Process", "Follow these steps for admission: ...")
+    
+    # Cutoff Information
+    if not cutoff_data.empty:
+        add_table_to_doc(doc, cutoff_data, ['course_name', 'cutoff_score'])
+    else:
+        doc.add_paragraph("Cutoff information is not available.", style=style)
+
+    return doc
+
+# Streamlit functions to upload and process Excel file
+def download_word_file(doc):
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+# Streamlit app logic
+st.title("College Information Portal")
+
+uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
 
 if uploaded_file is not None:
-    # Read all sheets from the Excel file
-    data_sheets = pd.read_excel(uploaded_file, sheet_name=None)
-    
-    # Check the sheet names and print column names from each sheet to help identify correct ones
-    st.write("Sheets and columns in the uploaded file:")
-    for sheet_name, df in data_sheets.items():
-        st.write(f"Sheet: {sheet_name}, Columns: {df.columns.tolist()}")
-    
-    # Assuming the main college information is in the first sheet or a specific sheet
-    df_colleges = data_sheets[list(data_sheets.keys())[0]]
-    
-    # Identify correct column names for 'College ID' and 'College Name'
-    column_name_variants_id = ['College ID', 'college_id', 'CollegeID']
-    column_name_variants_name = ['College Name', 'college_name', 'CollegeName']
-    
-    for col in df_colleges.columns:
-        if col.strip() in column_name_variants_id:
-            college_id_column = col.strip()
-        if col.strip() in column_name_variants_name:
-            college_name_column = col.strip()
+    # Read the uploaded Excel file
+    excel_data = pd.ExcelFile(uploaded_file)
 
-    if not college_id_column or not college_name_column:
-        st.error("No valid 'College ID' or 'College Name' column found.")
-        st.stop()
+    # Load data from the sheets into dataframes
+    college_df = pd.read_excel(excel_data, 'College')
+    ranking_df = pd.read_excel(excel_data, 'Ranking')
+    placement_df = pd.read_excel(excel_data, 'Placement')
+    course_df = pd.read_excel(excel_data, 'Courses')
+    faculty_df = pd.read_excel(excel_data, 'Faculty')
+    recruiters_df = pd.read_excel(excel_data, 'Recruiters')
+    awards_df = pd.read_excel(excel_data, 'Awards')
+    admission_df = pd.read_excel(excel_data, 'Admission')
+    contact_df = pd.read_excel(excel_data, 'Contact_Details')
+    facilities_df = pd.read_excel(excel_data, 'Facilities')
+    scholarships_df = pd.read_excel(excel_data, 'Scholarship')
+    cutoff_df = pd.read_excel(excel_data, 'Cutoff')
+    affiliation_df = pd.read_excel(excel_data, 'Affiliation')
+    approval_df = pd.read_excel(excel_data, 'Approval')
 
-    # Display the college names for selection but use the corresponding college_id for fetching data
-    college_name_to_id = dict(zip(df_colleges[college_name_column], df_colleges[college_id_column]))
-    selected_college_names = st.multiselect("Select Colleges", list(college_name_to_id.keys()))
-    
-    # Button to generate the content
-    if st.button("Generate Content"):
-        if selected_college_names:
-            # Iterate through selected college names and generate articles
-            for college_name in selected_college_names:
-                college_id = college_name_to_id[college_name]
-                row = df_colleges[df_colleges[college_id_column] == college_id].iloc[0]
-                
-                # Create a Word document for the selected college
-                doc = Document()
-                
-                # Add college details based on the template from all sheets
-                doc.add_heading(college_name, 0)
+    # Sidebar for College Selection
+    st.sidebar.header('Select College')
+    college_name = st.sidebar.selectbox('College Name', college_df['college_name'].unique())
 
-                if 'Establishment year' in row and not pd.isna(row['Establishment year']):
-                    doc.add_paragraph(f"{college_name} was established in {row['Establishment year']}.")
+    # Display College Information
+    st.header(f'{college_name} Information')
 
-                if 'College City' in row and 'College State' in row and not pd.isna(row['College City']) and not pd.isna(row['College State']):
-                    doc.add_paragraph(f"The college is located in {row['College City']}, {row['College State']}.")
+    college_info = college_df[college_df['college_name'] == college_name].iloc[0]
+    st.write(f"**{college_name}** was established in {college_info['establishment_year']} and is located in {college_info['city']}, {college_info['state']}.")
+    st.write(f"The college is known for its {college_info['usp']}. It is a {'Coed' if college_info['is_coed'] == 'Yes' else 'Non-Coed'} college.")
+    st.write(f"The NIRF rank of the college is {college_info['nirf_rank']}.")
 
-                if 'College USP' in row and not pd.isna(row['College USP']):
-                    doc.add_paragraph(f"The college is known for: {row['College USP']}.")
+    # Generate and download Word document
+    doc = create_word_document(college_info, ranking_df, placement_df, awards_df, 
+                               faculty_df, recruiters_df, course_df, admission_df, 
+                               contact_df, facilities_df, scholarships_df, cutoff_df,
+                               affiliation_df, approval_df)
+    buffer = download_word_file(doc)
 
-                if 'NIRF RANK' in row and not pd.isna(row['NIRF RANK']):
-                    doc.add_paragraph(f"Ranked {row['NIRF RANK']} in the NIRF rankings.")
-                
-                # Use data from other sheets (like placement, awards, faculty)
-                if 'Placements' in data_sheets:
-                    df_placements = data_sheets['Placements']
-                    if college_id_column in df_placements.columns:
-                        placement_row = df_placements[df_placements[college_id_column] == college_id]
-                        if not placement_row.empty:
-                            placement_info = placement_row.iloc[0]
-                            doc.add_heading(f"{college_name} Placements", level=1)
-                            doc.add_paragraph(f"Highest package: INR {placement_info['Highest Package']} and Average package: INR {placement_info['Average Package']}.")
-                    else:
-                        st.warning(f"'{college_id_column}' not found in Placements sheet")
+    st.download_button(
+        label="Download College Information in Word",
+        data=buffer,
+        file_name=f"{college_name}_info.docx",
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+else:
+    st.write("Please upload the Excel file to get started.")
 
-                if 'Awards' in data_sheets:
-                    df_awards = data_sheets['Awards']
-                    if college_id_column in df_awards.columns:
-                        award_row = df_awards[df_awards[college_id_column] == college_id]
-                        if not award_row.empty:
-                            award_info = award_row.iloc[0]
-                            # Check if columns exist in the 'Awards' sheet
-                            award = award_info.get('Award', None)
-                            awarding_authority = award_info.get('Awarding Authority', None)
-                            award_year = award_info.get('Award Year', None)
-
-                            doc.add_heading(f"{college_name} Awards", level=1)
-                            if award and awarding_authority and award_year:
-                                doc.add_paragraph(f"{award} awarded by {awarding_authority} in {award_year}.")
-                            else:
-                                doc.add_paragraph("Award details are incomplete.")
-                    else:
-                        st.warning(f"'{college_id_column}' not found in Awards sheet")
-
-                if 'Faculty' in data_sheets:
-                    df_faculty = data_sheets['Faculty']
-                    if college_id_column in df_faculty.columns:
-                        faculty_rows = df_faculty[df_faculty[college_id_column] == college_id]
-                        if not faculty_rows.empty:
-                            doc.add_heading(f"{college_name} Faculty", level=1)
-                            for _, faculty in faculty_rows.iterrows():
-                                faculty_name = faculty.get('Faculty Name', 'Unknown')
-                                specialty = faculty.get('Specialty', 'Unknown')
-                                education = faculty.get('Education', 'Unknown')
-                                doc.add_paragraph(f"{faculty_name}: {specialty} ({education})")
-                    else:
-                        st.warning(f"'{college_id_column}' not found in Faculty sheet")
-                    
-                if 'College Address' in row and not pd.isna(row['College Address']):
-                    doc.add_heading(f"{college_name} Address", level=1)
-                    doc.add_paragraph(f"{row['College Address']}")
-
-                if 'College Phone Number' in row or 'College Email' in row:
-                    doc.add_paragraph(f"Contact the college at {row['College Phone Number']} or via email at {row['College Email']}.")
-
-                if 'College Website' in row and not pd.isna(row['College Website']):
-                    doc.add_paragraph(f"Visit the official website at {row['College Website']}.")
-
-                # Save the document with the college name
-                doc_name = f"{college_name}_article.docx"
-                doc.save(doc_name)
-                
-                # Provide a download button for the Word document
-                with open(doc_name, "rb") as file:
-                    st.download_button(label=f"Download {college_name} Article", data=file, file_name=doc_name)
-                
-                # Clean up by removing the generated file after download
-                os.remove(doc_name)
-        else:
-            st.warning("Please select at least one college.")

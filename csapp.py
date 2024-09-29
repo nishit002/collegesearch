@@ -78,10 +78,16 @@ def create_word_document(college_info, ranking_data, placement_data, awards_data
         add_table_to_doc(doc, faculty_data, ['faculty_name', 'position', 'specialty', 'education'])
 
     # Contact and Infrastructure
+    # ... (other parts of the function) ...
+
+    # Contact and Infrastructure
     doc.add_heading(f"{college_info['college_name']} Address", level=2).style = style
-    doc.add_paragraph(f"The college is located in {contact_data['address'].iloc[0]}. You can contact the college by reaching out to the phone number: {contact_data['phone_number'].iloc[0]} Email: {contact_data['email'].iloc[0]}", style=style)
-    doc.add_paragraph(f"The college infrastructure includes facilities like {', '.join(facilities_data['facility_name'].astype(str).tolist())}.", style=style)
-    doc.add_paragraph(f"The official website of the college is {contact_data['website'].iloc[0]}.", style=style)
+    
+    # Access contact details from contact_data
+    contact_info = contact_data[contact_data['college_id'] == college_info['college_id']].iloc[0]
+    
+    doc.add_paragraph(f"The college is located in {contact_info['address']}. You can contact the college by reaching out to the phone number: {contact_info['phone_number']} Email: {contact_info['email']}", style=style)
+
 
     # Courses and Fees
     doc.add_heading("Courses and Fees", level=2).style = style
